@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Spotify 年別ヒット曲検索</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+    }
+
+    h1 {
+      color: #1DB954;
+    }
+
+    input,
+    button {
+      padding: 8px;
+      margin: 5px 0;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    li {
+      background: white;
+      margin: 5px 0;
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    a {
+      text-decoration: none;
+      color: #333;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .section {
+      margin-bottom: 30px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>Spotify 年別ヒット曲 Webアプリ</h1>
+
+  <div class="section">
+    <h2>① 年別ヒット曲 TOP5</h2>
+    <input type="number" id="yearInput" placeholder="例：2020">
+    <button onclick="showTopSongs()">検索</button>
+    <ul id="songList"></ul>
+  </div>
+
+  <div class="section">
+    <h2>② アーティスト検索</h2>
+    <input type="text" id="artistInput" placeholder="アーティスト名">
+    <button onclick="searchArtist()">検索</button>
+    <div id="artistInfo"></div>
+  </div>
+
+  <script>
+    // 汎用的なデータ取得関数
+    async function fetchData(params) {
+      const queryString = new URLSearchParams(params).toString();
+      // Vercelのエンドポイント /api/spotify を叩く
+      const res = await fetch(`/api/spotify?${queryString}`);
+
+      if (!res.ok) {
+        throw new Error('サーバーエラーが発生しました');
+      }
+      return await res.json();
+    }
+
+    // ① 年別ヒット曲を表示する関数
+    async function showTopSongs() {
+      const year = document.getElementById("yearInput").value;
+      const list = document.getElementById("songList");
+      if (!year) return alert("年を入力してください");
+
+      list.innerHTML = "検索中...";
+
+      try {
+        const data = await fetchData({ type: 'track', year: year });
+        list.innerHTML = "";
+
+        if (data.tracks && data.tracks.items.length > 0) {
+          data.tracks.items.forEach(track => {
+            const li = document.createElement("li");
+            li.innerHTML = `
+              <a href="${track.external_urls.spotify}" target="_blank">
+                <strong>${track.name}</strong> - ${track.artists[0].name}
+              </a>
+            `;
+            list.appendChild(li);
+          });
+        } else {
+          list.innerHTML = "曲が見つかりませんでした。";
+        }
+      } catch (err) {
+        list.innerHTML = "エラー: " + err.message;
+      }
+    }
+
+    // ② アーティスト情報を表示する関数
+    async function searchArtist() {
+      const name = document.getElementById("artistInput").value;
+      const info = document.getElementById("artistInfo");
+      if (!name) return alert("アーティスト名を入力してください");
+
+      info.innerHTML = "検索中...";
+
+      try {
+        const data = await fetchData({ type: 'artist', name: name });
+        const artist = data.artists.items[0];
+
+        if (!artist) {
+          info.innerHTML = "アーティストが見つかりませんでした。";
+          return;
+        }
+
+        // 原本の表示項目：名前、フォロワー、ジャンル
+        info.innerHTML = `
+          <h3>${artist.name}</h3>
+          <p>フォロワー数：${artist.followers.total.toLocaleString()}人</p>
+          <p>ジャンル：${artist.genres.join(", ") || "不明"}</p>
+          <a href="${artist.external_urls.spotify}" target="_blank" style="color: #1DB954; font-weight: bold;">
+            Spotifyで開く
+          </a>
+        `;
+      } catch (err) {
+        info.innerHTML = "エラー: " + err.message;
+      }
+    }
+  </script>
+</body>
+
+</html>
